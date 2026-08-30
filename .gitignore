@@ -1,0 +1,66 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+credentials/
+*.pem
+*.key
+
+# Gmail OAuth tokens
+token.json
+credentials.json
+client_secret*.json
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Playwright
+playwright-report/
+test-results/
+
+# Runtime data & exports
+data/
+exports/
+logs/
+*.log
+.tmp/
+.cache/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS
+desktop.ini

@@ -1,0 +1,85 @@
+"""
+Agentic-Workflow
+================
+Enterprise Autonomous Lead Generation, Enrichment & Outreach Agent
+
+LangGraph-orchestrated pipeline with MX email verification, pain-point
+analysis, personalized copywriting, and Human-in-the-Loop (HITL) approval
+before Gmail dispatch.
+"""
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-workflow"
+version = "0.2.0"
+description = "Enterprise Autonomous Lead Generation, Enrichment & Outreach Agent"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Agentic Workflow Team" }]
+keywords = [
+    "langgraph",
+    "agents",
+    "lead-generation",
+    "enrichment",
+    "outreach",
+    "hitl",
+    "langchain",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "langgraph>=0.2.0",
+    "langchain>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "langchain-core>=0.3.0",
+    "playwright>=1.40.0",
+    "beautifulsoup4>=4.12.0",
+    "firecrawl-py>=1.0.0",
+    "dnspython>=2.4.0",
+    "streamlit>=1.30.0",
+    "pandas>=2.1.0",
+    "google-api-python-client>=2.100.0",
+    "google-auth-oauthlib>=1.1.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "python-dotenv>=1.0.0",
+    "loguru>=0.7.0",
+    "httpx>=0.27.0",
+    "tenacity>=8.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.3.0",
+    "mypy>=1.8.0",
+]
+
+[project.scripts]
+agentic-workflow = "main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["config*", "core*", "agents*", "tools*", "prompts*", "utils*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
