@@ -5,25 +5,14 @@ from __future__ import annotations
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
-from config.settings import get_settings
 from core.state import LeadState, LeadStatus
 from prompts.analyzer_prompts import ANALYZER_SYSTEM_PROMPT, build_analyzer_user_prompt
-from utils.helpers import extract_json_block, truncate
+from utils.helpers import extract_json_block, invoke_llm, truncate
 from utils.logger import logger
 
 
-def _get_llm() -> ChatOpenAI:
-    settings = get_settings()
-    return ChatOpenAI(
-        model=settings.openai_model,
-        temperature=settings.openai_temperature,
-        api_key=settings.openai_api_key.get_secret_value() or None,
-    )
-
-
-def _analyze_one(lead: dict[str, Any], llm: ChatOpenAI) -> dict[str, Any]:
+def _analyze_one(lead: dict[str, Any]) -> dict[str, Any]:
     content = lead.get("scraped_content") or ""
     if not content.strip():
         return {
@@ -43,7 +32,7 @@ def _analyze_one(lead: dict[str, Any], llm: ChatOpenAI) -> dict[str, Any]:
         scraped_content=truncate(content, 12_000),
     )
 
-    response = llm.invoke(
+    response = invoke_llm(
         [
             SystemMessage(content=ANALYZER_SYSTEM_PROMPT),
             HumanMessage(content=user_prompt),
@@ -113,7 +102,6 @@ def run_analyzer(state: LeadState) -> dict[str, Any]:
             "step": "analysis",
         }
 
-    llm = _get_llm()
     analyzed: list[dict[str, Any]] = []
     target_keys = {
         (t.get("website") or t.get("company_name") or "").lower() for t in targets
@@ -125,7 +113,7 @@ def run_analyzer(state: LeadState) -> dict[str, Any]:
             analyzed.append(lead)
             continue
         try:
-            result = _analyze_one(lead, llm)
+            result = _analyze_one(lead)
             analyzed.append(result)
             pp_count = len(result.get("pain_points") or [])
             messages.append(f"Analyzed {result.get('company_name')} — {pp_count} pain point(s)")

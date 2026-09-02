@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
 from config.settings import get_settings
 from core.state import LeadState, LeadStatus
@@ -13,20 +12,11 @@ from prompts.outreach_prompts import (
     OUTREACH_SYSTEM_PROMPT,
     build_outreach_user_prompt,
 )
-from utils.helpers import extract_json_block, format_pain_points
+from utils.helpers import extract_json_block, format_pain_points, invoke_llm
 from utils.logger import logger
 
 
-def _get_llm() -> ChatOpenAI:
-    settings = get_settings()
-    return ChatOpenAI(
-        model=settings.openai_model,
-        temperature=max(settings.openai_temperature, 0.45),
-        api_key=settings.openai_api_key.get_secret_value() or None,
-    )
-
-
-def _draft_one(lead: dict[str, Any], llm: ChatOpenAI, framework: str) -> dict[str, Any]:
+def _draft_one(lead: dict[str, Any], framework: str) -> dict[str, Any]:
     settings = get_settings()
     user_prompt = build_outreach_user_prompt(
         company_name=lead.get("company_name") or "there",
@@ -43,11 +33,12 @@ def _draft_one(lead: dict[str, Any], llm: ChatOpenAI, framework: str) -> dict[st
         from_company=settings.outreach_from_company,
     )
 
-    response = llm.invoke(
+    response = invoke_llm(
         [
             SystemMessage(content=OUTREACH_SYSTEM_PROMPT),
             HumanMessage(content=user_prompt),
-        ]
+        ],
+        temperature=max(settings.openai_temperature, 0.45),
     )
     raw = response.content if isinstance(response.content, str) else str(response.content)
     data = extract_json_block(raw) or {}
@@ -92,7 +83,6 @@ def run_copywriter(state: LeadState) -> dict[str, Any]:
             "step": "copywriting",
         }
 
-    llm = _get_llm()
     updated: list[dict[str, Any]] = []
     target_keys = {
         (t.get("website") or t.get("company_name") or "").lower() for t in targets
@@ -104,7 +94,7 @@ def run_copywriter(state: LeadState) -> dict[str, Any]:
             updated.append(lead)
             continue
         try:
-            drafted = _draft_one(lead, llm, framework)
+            drafted = _draft_one(lead, framework)
             updated.append(drafted)
             messages.append(f"Drafted outreach for {drafted.get('company_name')}")
         except Exception as exc:

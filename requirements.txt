@@ -2,6 +2,7 @@
 langgraph>=0.2.0
 langchain>=0.3.0
 langchain-openai>=0.2.0
+langchain-groq>=0.2.0
 langchain-core>=0.3.0
 
 # Web scraping & crawling
@@ -12,6 +13,7 @@ firecrawl-py>=1.0.0
 httpx>=0.27.0
 
 # Email validation & security
+# dnspython provides `import dns` used by tools/validator_tools.py (pip package: dnspython)
 dnspython>=2.4.0
 email-validator>=2.1.0
 

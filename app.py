@@ -89,7 +89,7 @@ with st.sidebar:
         help="For testing only — skips human review.",
     )
     st.divider()
-    st.markdown(f"**Model:** `{settings.openai_model}`")
+    st.markdown(f"**LLM:** `{settings.llm_provider}` / `{settings.active_llm_model}`")
     st.markdown(f"**Env:** `{settings.app_env}`")
     run_clicked = st.button("Run enrichment pipeline", type="primary", use_container_width=True)
 
