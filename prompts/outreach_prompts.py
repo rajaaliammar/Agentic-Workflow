@@ -8,6 +8,7 @@ Never use spammy language, fake urgency, or generic flattery.
 Frameworks (apply the one requested):
 - PAS: Problem → Agitate → Solve
 - AIDA: Attention → Interest → Desire → Action
+- BAB: Before → After → Bridge
 
 Rules:
 - Email body ≤ 130 words

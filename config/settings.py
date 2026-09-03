@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -76,7 +75,7 @@ class Settings(BaseSettings):
     # Outreach
     outreach_from_name: str = Field(default="Your Name", alias="OUTREACH_FROM_NAME")
     outreach_from_company: str = Field(default="Your Company", alias="OUTREACH_FROM_COMPANY")
-    outreach_framework: Literal["PAS", "AIDA"] = Field(default="PAS", alias="OUTREACH_FRAMEWORK")
+    outreach_framework: str = Field(default="PAS", alias="OUTREACH_FRAMEWORK")
     dry_run: bool = Field(default=True, alias="DRY_RUN")
 
     # HITL
