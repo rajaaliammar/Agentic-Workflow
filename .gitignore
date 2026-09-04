@@ -58,6 +58,8 @@ logs/
 *.log
 .tmp/
 .cache/
+agentic_workflow.db
+*.db-journal
 
 # Streamlit
 .streamlit/secrets.toml

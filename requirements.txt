@@ -35,6 +35,9 @@ python-dotenv>=1.0.0
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 
+# Persistence
+sqlalchemy>=2.0.0
+
 # Utilities
 loguru>=0.7.0
 tenacity>=8.2.0
