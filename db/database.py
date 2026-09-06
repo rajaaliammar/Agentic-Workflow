@@ -25,10 +25,21 @@ class Base(DeclarativeBase):
 
 
 def init_db() -> None:
-    """Create all tables if they do not exist."""
+    """Create all tables if they do not exist; patch missing SQLite columns."""
+    from sqlalchemy import text
+
     from db import models  # noqa: F401 — register models on Base.metadata
 
     Base.metadata.create_all(bind=engine)
+
+    # Lightweight migration for newly added columns
+    with engine.begin() as conn:
+        cols = {
+            row[1]
+            for row in conn.execute(text("PRAGMA table_info(jobs)")).fetchall()
+        }
+        if "logs" not in cols:
+            conn.execute(text("ALTER TABLE jobs ADD COLUMN logs TEXT DEFAULT ''"))
 
 
 def get_db() -> Generator[Session, None, None]:

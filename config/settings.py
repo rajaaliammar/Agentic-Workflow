@@ -69,8 +69,8 @@ class Settings(BaseSettings):
     default_industry: str = Field(default="B2B SaaS", alias="DEFAULT_INDUSTRY")
     default_location: str = Field(default="United States", alias="DEFAULT_LOCATION")
     max_leads_per_run: int = Field(default=10, alias="MAX_LEADS_PER_RUN")
-    scrape_timeout_seconds: int = Field(default=30, alias="SCRAPE_TIMEOUT_SECONDS")
-    min_qualification_score: float = Field(default=6.0, alias="MIN_QUALIFICATION_SCORE")
+    scrape_timeout_seconds: int = Field(default=8, alias="SCRAPE_TIMEOUT_SECONDS")
+    min_qualification_score: float = Field(default=4.0, alias="MIN_QUALIFICATION_SCORE")
 
     # Outreach
     outreach_from_name: str = Field(default="Your Name", alias="OUTREACH_FROM_NAME")

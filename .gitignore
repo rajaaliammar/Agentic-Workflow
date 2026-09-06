@@ -19,9 +19,10 @@ credentials/
 *.pem
 *.key
 
-# Gmail OAuth tokens
+# Gmail OAuth tokens & secrets (never commit)
 token.json
 credentials.json
+credentials/
 client_secret*.json
 
 # Distribution / packaging
@@ -58,7 +59,10 @@ logs/
 *.log
 .tmp/
 .cache/
+
+# SQLite
 agentic_workflow.db
+*.db
 *.db-journal
 
 # Streamlit

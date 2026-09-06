@@ -28,6 +28,7 @@ class Job(Base):
     auto_approve: Mapped[bool] = mapped_column(Boolean, default=False)
     max_leads: Mapped[int] = mapped_column(Integer, default=3)
     errors: Mapped[str] = mapped_column(Text, default="")
+    logs: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

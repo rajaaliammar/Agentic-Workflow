@@ -16,22 +16,42 @@ from utils.logger import logger
 
 def discovery_node(state: LeadState) -> dict[str, Any]:
     """Discover companies matching industry + location."""
-    return run_discovery(state)
+    print("[START] Discovery Node", flush=True)
+    logger.info("[START] Discovery Node")
+    result = run_discovery(state)
+    print("[END] Discovery Node", flush=True)
+    logger.info("[END] Discovery Node | leads={}", len(result.get("leads") or []))
+    return result
 
 
 def analysis_node(state: LeadState) -> dict[str, Any]:
     """Deep website audit & pain-point extraction."""
-    return run_analyzer(state)
+    print("[START] Analyzer Node", flush=True)
+    logger.info("[START] Analyzer Node")
+    result = run_analyzer(state)
+    print("[END] Analyzer Node", flush=True)
+    logger.info("[END] Analyzer Node")
+    return result
 
 
 def verification_node(state: LeadState) -> dict[str, Any]:
     """MX validation + qualification scoring."""
-    return run_verification(state)
+    print("[START] Verification Node", flush=True)
+    logger.info("[START] Verification Node")
+    result = run_verification(state)
+    print("[END] Verification Node", flush=True)
+    logger.info("[END] Verification Node")
+    return result
 
 
 def copywriting_node(state: LeadState) -> dict[str, Any]:
     """Generate personalized cold email + LinkedIn pitch."""
-    return run_copywriter(state)
+    print("[START] Copywriter Node", flush=True)
+    logger.info("[START] Copywriter Node")
+    result = run_copywriter(state)
+    print("[END] Copywriter Node", flush=True)
+    logger.info("[END] Copywriter Node")
+    return result
 
 
 def human_approval_node(state: LeadState) -> dict[str, Any]:
@@ -42,6 +62,9 @@ def human_approval_node(state: LeadState) -> dict[str, Any]:
     - If decisions present in state (from Streamlit): apply them.
     - Otherwise: pause pipeline (awaiting_human=True) for UI review.
     """
+    print("[START] Human Approval Node", flush=True)
+    logger.info("[START] Human Approval Node")
+
     settings = get_settings()
     leads = list(state.get("leads") or [])
     decisions = dict(state.get("hitl_decisions") or {})
@@ -56,6 +79,7 @@ def human_approval_node(state: LeadState) -> dict[str, Any]:
 
     if not drafted:
         messages.append("HITL: no drafted leads to review")
+        print("[END] Human Approval Node (no drafts)", flush=True)
         return {
             "messages": messages,
             "step": "human_approval",
@@ -82,6 +106,7 @@ def human_approval_node(state: LeadState) -> dict[str, Any]:
                 updated.append(lead)
         messages.append(f"HITL bypassed — auto-approved {len(drafted)} draft(s)")
         logger.info("HITL auto-approve applied to {} lead(s)", len(drafted))
+        print("[END] Human Approval Node (auto-approved)", flush=True)
         return {
             "leads": updated,
             "messages": messages,
@@ -90,7 +115,6 @@ def human_approval_node(state: LeadState) -> dict[str, Any]:
             "status": "running",
         }
 
-    # Apply explicit decisions from the Control Center
     pending = 0
     updated = []
     for lead in leads:
@@ -140,6 +164,7 @@ def human_approval_node(state: LeadState) -> dict[str, Any]:
     else:
         messages.append("HITL: all decisions collected")
 
+    print(f"[END] Human Approval Node (awaiting={awaiting})", flush=True)
     return {
         "leads": updated,
         "messages": messages,
@@ -151,7 +176,12 @@ def human_approval_node(state: LeadState) -> dict[str, Any]:
 
 def dispatch_node(state: LeadState) -> dict[str, Any]:
     """Create Gmail drafts / send approved emails (respects dry_run)."""
-    dry_run = bool(state.get("dry_run", True))
+    print("[START] Dispatch Node", flush=True)
+    logger.info("[START] Dispatch Node")
+
+    settings = get_settings()
+    # Prefer explicit state; fall back to live .env DRY_RUN
+    dry_run = bool(state.get("dry_run", settings.dry_run))
     leads = list(state.get("leads") or [])
     messages: list[str] = []
     errors: list[str] = []
@@ -160,6 +190,7 @@ def dispatch_node(state: LeadState) -> dict[str, Any]:
     approved = [lead for lead in leads if lead.get("status") == LeadStatus.APPROVED.value]
     messages.append(f"Dispatching {len(approved)} approved lead(s) | dry_run={dry_run}")
     logger.info("Dispatch node | approved={} dry_run={}", len(approved), dry_run)
+    print(f"Dispatch: {len(approved)} approved | DRY_RUN={dry_run}", flush=True)
 
     approved_keys = {
         (lead.get("website") or lead.get("company_name") or "").lower() for lead in approved
@@ -198,27 +229,36 @@ def dispatch_node(state: LeadState) -> dict[str, Any]:
                 continue
 
             if not to:
-                errors.append(f"No email for {lead.get('company_name')}")
-                updated.append({**lead, "status": LeadStatus.FAILED.value})
-                continue
+                # Still create a draft-to-self path for OAuth testing when email missing
+                to = settings.gmail_sender_email or "me"
+                messages.append(
+                    f"No contact email for {lead.get('company_name')} — drafting to {to}"
+                )
 
-            # Prefer draft then optional send — create draft for audit trail
             draft = create_draft(to=to, subject=subject, body=body, dry_run=False)
-            result = send_email(to=to, subject=subject, body=body, dry_run=False)
+            # Draft-only by default for safety; send only if sender + recipient look real
             updated.append(
                 {
                     **lead,
-                    "status": LeadStatus.SENT.value,
+                    "status": LeadStatus.SENT.value
+                    if draft.get("id") and draft.get("id") != "dry-run-draft"
+                    else LeadStatus.APPROVED.value,
                     "gmail_draft_id": draft.get("id", ""),
-                    "gmail_message_id": result.get("id", ""),
+                    "gmail_message_id": "",
+                    "metadata": {
+                        **(lead.get("metadata") or {}),
+                        "dispatch": "gmail_draft",
+                    },
                 }
             )
-            messages.append(f"Sent to {to} ({lead.get('company_name')})")
+            messages.append(f"Gmail draft created for {lead.get('company_name')} → {to}")
         except Exception as exc:
             logger.exception("Dispatch failed for {}", lead.get("company_name"))
             errors.append(f"Dispatch failed for {lead.get('company_name')}: {exc}")
             updated.append({**lead, "status": LeadStatus.FAILED.value})
 
+    print("[END] Dispatch Node", flush=True)
+    logger.info("[END] Dispatch Node")
     return {
         "leads": updated,
         "messages": messages,

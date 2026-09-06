@@ -13,7 +13,6 @@ from tools.browser_tools import scrape_url
 from utils.helpers import normalize_url, truncate
 from utils.logger import logger
 
-# Curated seed set so demos / CI work offline
 _DEMO_COMPANIES: list[dict[str, Any]] = [
     {
         "company_name": "Notion",
@@ -89,7 +88,7 @@ def _search_live(industry: str, location: str, limit: int) -> list[dict[str, Any
     url = f"https://html.duckduckgo.com/html/?q={quote_plus(query)}"
     headers = {"User-Agent": "Mozilla/5.0 (compatible; AgenticWorkflow/0.2)"}
     try:
-        with httpx.Client(timeout=15.0, follow_redirects=True) as client:
+        with httpx.Client(timeout=8.0, follow_redirects=True) as client:
             resp = client.get(url, headers=headers)
             resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "lxml")
@@ -112,24 +111,29 @@ def _search_live(industry: str, location: str, limit: int) -> list[dict[str, Any
                     "description": snippet.get_text(strip=True) if snippet else "",
                 }
             )
-        return results
+        return results[:limit]
     except Exception as exc:
         logger.warning("Live discovery search failed: {}", exc)
         return []
 
 
 def run_discovery(state: LeadState) -> dict[str, Any]:
-    """
-    LangGraph node body: discover candidate companies and scrape landing pages.
-    """
+    """Discover candidate companies and scrape landing pages (bounded by max_leads)."""
     industry = state.get("industry") or "B2B SaaS"
     location = state.get("location") or "United States"
-    max_leads = int(state.get("max_leads") or 10)
+    max_leads = max(1, min(int(state.get("max_leads") or 10), 10))
     messages: list[str] = []
     errors: list[str] = []
 
-    messages.append(f"Discovering leads | industry={industry!r} location={location!r}")
-    logger.info("Discovery agent | industry={!r} location={!r} max={}", industry, location, max_leads)
+    messages.append(
+        f"Discovering leads | industry={industry!r} location={location!r} max_leads={max_leads}"
+    )
+    logger.info(
+        "Discovery agent | industry={!r} location={!r} max_leads={}",
+        industry,
+        location,
+        max_leads,
+    )
 
     candidates = _search_live(industry, location, max_leads)
     if not candidates:
@@ -138,8 +142,11 @@ def run_discovery(state: LeadState) -> dict[str, Any]:
     else:
         messages.append(f"Found {len(candidates)} live candidate(s)")
 
+    # Hard limit — never scrape more than max_leads
+    candidates = candidates[:max_leads]
     leads: list[dict[str, Any]] = []
-    for candidate in candidates:
+
+    for idx, candidate in enumerate(candidates, start=1):
         website = normalize_url(candidate.get("website") or "")
         company = candidate.get("company_name") or "Unknown"
         lead: dict[str, Any] = {
@@ -158,11 +165,17 @@ def run_discovery(state: LeadState) -> dict[str, Any]:
             leads.append(lead)
             continue
 
+        logger.info("Scraping target {}/{}: {} ({})", idx, len(candidates), company, website)
         try:
             content = scrape_url(website)
             lead["scraped_content"] = truncate(content, 50_000)
-            messages.append(f"Scraped {company} ({website})")
-            logger.info("Scraped {} — {} chars", company, len(content))
+            if content:
+                messages.append(f"Scraped {company} ({website})")
+                logger.info("Scraped {} — {} chars", company, len(content))
+            else:
+                messages.append(f"Empty scrape for {company} — continuing")
+                # Keep discovered so analyzer can still score from metadata
+                lead["status"] = LeadStatus.DISCOVERED.value
         except Exception as exc:
             lead["status"] = LeadStatus.FAILED.value
             errors.append(f"Scrape failed for {website}: {exc}")
@@ -170,6 +183,7 @@ def run_discovery(state: LeadState) -> dict[str, Any]:
 
         leads.append(lead)
 
+    messages.append(f"Discovery complete — {len(leads)} lead(s)")
     return {
         "leads": leads,
         "messages": messages,

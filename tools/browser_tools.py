@@ -6,11 +6,18 @@ from typing import Optional
 
 import httpx
 from bs4 import BeautifulSoup
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from config.settings import get_settings
 from utils.helpers import normalize_url
 from utils.logger import logger
+
+# Hard cap so discovery never hangs the pipeline
+_MAX_SCRAPE_TIMEOUT_SEC = 8
+
+
+def _scrape_timeout_seconds() -> int:
+    settings = get_settings()
+    return max(3, min(int(settings.scrape_timeout_seconds or 8), _MAX_SCRAPE_TIMEOUT_SEC))
 
 
 def _clean_html(html: str) -> str:
@@ -23,31 +30,18 @@ def _clean_html(html: str) -> str:
 
 
 def _is_firecrawl_auth_error(exc: BaseException) -> bool:
-    """Detect Firecrawl token / authorization failures."""
     msg = str(exc).lower()
     return any(
         token in msg
-        for token in (
-            "unauthorized",
-            "invalid token",
-            "authentication",
-            "forbidden",
-            "401",
-            "403",
-        )
+        for token in ("unauthorized", "invalid token", "authentication", "forbidden", "401", "403")
     )
 
 
 def scrape_with_firecrawl(url: str) -> Optional[str]:
-    """
-    Scrape via Firecrawl when configured.
-
-    Returns None on skip, auth failure, or any error so callers can fall back.
-    """
+    """Scrape via Firecrawl when configured. Returns None on skip/failure."""
     settings = get_settings()
     api_key = settings.firecrawl_api_key.get_secret_value()
     if not api_key or api_key.startswith("fc-your-"):
-        logger.debug("Firecrawl skipped for {} — no API key configured", url)
         return None
 
     try:
@@ -55,48 +49,29 @@ def scrape_with_firecrawl(url: str) -> Optional[str]:
 
         app = FirecrawlApp(api_key=api_key)
         result = app.scrape_url(url, formats=["markdown", "html"])
-
         if isinstance(result, dict):
             if result.get("success") is False:
-                error_msg = str(result.get("error") or result.get("message") or result)
-                if _is_firecrawl_auth_error(Exception(error_msg)):
-                    logger.warning(
-                        "Firecrawl unauthorized for {} — falling back to HTML scrape",
-                        url,
-                    )
-                else:
-                    logger.warning("Firecrawl error for {}: {}", url, error_msg)
+                logger.warning("Firecrawl error for {}: {}", url, result.get("error") or result)
                 return None
-
             markdown = result.get("markdown")
             html = result.get("html") or ""
             content = markdown or (_clean_html(html) if html else "")
-            if content.strip():
-                return content
-            return None
-
+            return content if content and content.strip() else None
         text = str(result).strip()
         return text or None
     except Exception as exc:
         if _is_firecrawl_auth_error(exc):
-            logger.warning(
-                "Firecrawl auth failed for {} ({}); falling back to HTML scrape",
-                url,
-                exc,
-            )
+            logger.warning("Firecrawl auth failed for {} ({}); falling back", url, exc)
         else:
             logger.warning("Firecrawl failed for {}: {}", url, exc)
         return None
 
 
 def scrape_with_httpx(url: str) -> Optional[str]:
-    """Lightweight HTML fetch + BeautifulSoup parse (no browser)."""
-    settings = get_settings()
-    timeout = settings.scrape_timeout_seconds
+    """Lightweight HTML fetch + BeautifulSoup (preferred over Playwright)."""
+    timeout = _scrape_timeout_seconds()
     headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (compatible; AgenticWorkflow/0.2; +https://localhost)"
-        ),
+        "User-Agent": "Mozilla/5.0 (compatible; AgenticWorkflow/0.2; +https://localhost)",
         "Accept": "text/html,application/xhtml+xml",
     }
     try:
@@ -106,55 +81,62 @@ def scrape_with_httpx(url: str) -> Optional[str]:
         content = _clean_html(response.text)
         return content if content.strip() else None
     except Exception as exc:
-        logger.warning("HTTP scrape failed for {}: {}", url, exc)
+        logger.warning("HTTP scrape failed for {} ({}s timeout): {}", url, timeout, exc)
         return None
 
 
-@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=1, max=8), reraise=True)
-def scrape_with_playwright(url: str) -> str:
-    """Load a page with headless Chromium and return cleaned text."""
-    settings = get_settings()
-    timeout_ms = settings.scrape_timeout_seconds * 1000
+def scrape_with_playwright(url: str) -> Optional[str]:
+    """
+    Load a page with headless Chromium under a hard timeout (max 8s).
 
-    from playwright.sync_api import sync_playwright
+    Returns None on timeout/failure so the pipeline can continue.
+    """
+    timeout_ms = _scrape_timeout_seconds() * 1000
+    logger.info("Playwright scrape {} | timeout={}ms", url, timeout_ms)
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        try:
-            page = browser.new_page()
-            page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
-            page.wait_for_timeout(400)
-            html = page.content()
-        finally:
-            browser.close()
-    return _clean_html(html)
+    try:
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            try:
+                page = browser.new_page()
+                page.set_default_timeout(timeout_ms)
+                page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+                html = page.content()
+            finally:
+                browser.close()
+        content = _clean_html(html)
+        return content if content.strip() else None
+    except Exception as exc:
+        logger.warning("Playwright scrape failed/timed out for {}: {}", url, exc)
+        return None
 
 
 def scrape_url(url: str) -> str:
     """
-    Scrape a URL with graceful backend fallback.
+    Scrape a URL with fail-fast backends (max ~8s each).
 
-    Order: Firecrawl → httpx/BeautifulSoup → Playwright
-
-    Raises:
-        ValueError: empty URL
-        Exception: all backends fail
+    Order: Firecrawl → httpx → Playwright (optional last resort)
+    Returns empty string if all backends fail (does not hang the graph).
     """
     normalized = normalize_url(url)
     if not normalized:
         raise ValueError("URL is required")
 
-    logger.info("Scraping {}", normalized)
+    logger.info("Scraping {} (timeout={}s)", normalized, _scrape_timeout_seconds())
 
     content = scrape_with_firecrawl(normalized)
     if content:
-        logger.debug("Scraped {} via Firecrawl", normalized)
         return content
 
     content = scrape_with_httpx(normalized)
     if content:
-        logger.debug("Scraped {} via httpx/BeautifulSoup", normalized)
         return content
 
-    logger.info("Falling back to Playwright for {}", normalized)
-    return scrape_with_playwright(normalized)
+    content = scrape_with_playwright(normalized)
+    if content:
+        return content
+
+    logger.warning("All scrape backends failed for {} — continuing with empty content", normalized)
+    return ""
