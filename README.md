@@ -2,8 +2,7 @@
 
 Enterprise **Autonomous Lead Generation, Enrichment & Outreach Agent**.
 
-A modular LangGraph system that discovers business leads, performs deep website pain-point analysis, validates emails via MX records, generates customized outreach (PAS / AIDA), and routes drafts through a **Human-in-the-Loop (HITL)** Streamlit review UI before Gmail dispatch.
-
+A modular LangGraph system that discovers business leads, performs deep website pain-point analysis, validates emails via MX records, generates customized outreach (PAS / AIDA), and routes drafts through a **Human-in-the-Loop (HITL)** Streamlit review UI before Gmail dispatch.  
     
 ## Pipeline
 
