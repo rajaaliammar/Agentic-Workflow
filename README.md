@@ -1,6 +1,6 @@
 # Agentic-Workflow
                                                                                                                        
-Enterprise **Autonomous Lead Generation, Enrichment & Outreach Agent**.
+Enterprise **Autonomous Lead Generation, Enrichment & Outreach Agent**.                  
             
 A modular LangGraph system that discovers business leads, performs deep website pain-point analysis, validates emails via MX records, generates customized outreach (PAS / AIDA), and routes drafts through a **Human-in-the-Loop (HITL)** Streamlit review UI before Gmail dispatch.                                                              
                                                               
@@ -76,7 +76,7 @@ Agentic-Workflow/
 ├── tools/                      # Browser, MX validator, Gmail, CRM export
 ├── prompts/                    # Analyzer & outreach (PAS/AIDA) prompts
 └── utils/                      # loguru logger + helpers
-```
+`````
 
 ## Safety & Compliance
 
@@ -87,3 +87,5 @@ Agentic-Workflow/
 ## License
 
 MIT
+
+
