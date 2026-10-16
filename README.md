@@ -79,7 +79,7 @@ Agentic-Workflow/
 `````
                                   
 ## Safety & Compliance           
-          
+                                   
 - `DRY_RUN=true` and `REQUIRE_HUMAN_APPROVAL=true` by default.
 - Never commit `.env`, OAuth tokens, or `credentials/`.
 - Respect robots.txt / ToS when scraping; keep send volumes within Gmail quotas and local regulations (CAN-SPAM / GDPR).
