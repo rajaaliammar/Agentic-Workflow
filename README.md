@@ -78,7 +78,7 @@ Agentic-Workflow/
 └── utils/                      # loguru logger + helpers
 `````
                                   
-## Safety & Compliance
+## Safety & Compliance           
           
 - `DRY_RUN=true` and `REQUIRE_HUMAN_APPROVAL=true` by default.
 - Never commit `.env`, OAuth tokens, or `credentials/`.
