@@ -67,7 +67,7 @@ python main.py --industry "DevTools" --auto-approve   # skip HITL (testing only)
 Agentic-Workflow/
 ├── app.py                      # Streamlit HITL Control Center
 ├── main.py                     # CLI batch runner
-├── config/settings.py          # Pydantic Settings
+├── config/settings.py          # Pydantic Settings                     
 ├── core/
 │   ├── state.py                # LeadState & graph memory
 │   ├── nodes.py                # LangGraph execution nodes
