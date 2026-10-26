@@ -57,7 +57,7 @@ Use the sidebar for **Industry** and **Location**, run the pipeline, review lead
 ### CLI batch run
 
 ```bash
-python main.py --industry "Fintech" --location "London" --max-leads 5
+python main.py --industry "Fintech" --location "London" --max-leads 5                      
 python main.py --industry "DevTools" --auto-approve   # skip HITL (testing only)
 ```
                             
