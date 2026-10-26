@@ -9,7 +9,7 @@ A modular LangGraph system that discovers business leads, performs deep website 
                
 ```
 Discovery → Analysis → Verification → Copywriting → HITL Approval → Dispatch
-   │            │            │             │              │            │
+   │            │            │             │              │            │                                      
  URLs /      Pain points   MX + score   Cold email    Approve /     Gmail
  companies   & tech audit  qualify      + LinkedIn    Reject        API
 ```
