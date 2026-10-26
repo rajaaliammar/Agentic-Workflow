@@ -6,7 +6,7 @@ A modular LangGraph system that discovers business leads, performs deep website 
                                                                                            
 ## Pipeline                                              
                                                                                                           
-               
+                              
 ```
 Discovery → Analysis → Verification → Copywriting → HITL Approval → Dispatch            
    │            │            │             │              │            │                                      
